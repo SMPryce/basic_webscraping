@@ -40,7 +40,7 @@ output_filename = json_filename.replace(".json", ".csv")
 with open(output_filename, "w", newline="", encoding="utf-8") as f:
     writer = csv.writer(f)
     # Write cleanly labeled headers
-    writer.writerow(["Date", "Data Usage"]) 
+    writer.writerow(["Date", "Data_Usage"]) 
     writer.writerows(extracted_rows)
 
 print(f" CSV file:'{output_filename}'successfully generated")
