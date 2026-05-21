@@ -1,36 +1,46 @@
-from bs4 import BeautifulSoup
-import pandas as pd
-import re
- 
-# Load the HTML file
-with open("Starlink.html", "r", encoding="utf-8") as file:
-    html_content = file.read()
- 
-# Parse HTML
-soup = BeautifulSoup(html_content, "html.parser")
- 
-# Find all bar elements in the graph
-bars = soup.find_all("rect", class_="MuiBarElement-root")
- 
-# Extract bar heights
-heights = []
-for bar in bars:
-    height = bar.get("height")
- 
-    if height:
-        heights.append(float(height))
- 
-# Generate day labels
-days = list(range(1, len(heights) + 1))
- 
-# Create dataframe
-usage_data = pd.DataFrame({
-    "Day": days,
-    "Data_Usage_Value": heights
-})
- 
-# Save to CSV
-usage_data.to_csv("data_usage.csv", index=False)
- 
-print("CSV file created successfully!")
-print(usage_data)
+import json
+import csv
+from datetime import datetime, timedelta
+
+# Enter the JSON filename
+
+json_filename = input("Enter filename: ")
+
+with open(json_filename, 'r') as file:
+    payload = json.load(file)
+
+extracted_rows = []
+
+# Navigating through Starlink's specific object tree
+billing_cycles = payload.get("content", {}).get("billingCyclesAnnotated", [])
+
+for cycle in billing_cycles:
+    # Extract structural dates for the billing cycle
+    start_date_str = cycle.get("startDate").split("T")[0] # e.g., '2025-11-17'
+    start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+    
+    daily_usages = cycle.get("dailyData", [])
+    
+    # Enumerate through every day in the array chunk
+    for index, usage_wrapper in enumerate(daily_usages):
+        # Calculate individual day offset from the cycle's starting date
+        current_day = start_date + timedelta(days=index)
+        current_day_str = current_day.strftime("%Y-%m-%d")
+        
+        # Extract the raw decimal value inside the nested array
+        if usage_wrapper and len(usage_wrapper) > 0:
+            gb_value = round(usage_wrapper[0], 2) # Clean decimal trailing numbers
+        else:
+            gb_value = 0.0
+            
+        extracted_rows.append([current_day_str, f"{gb_value} GB"])
+
+# 2. Write rows out to a structured, human-readable CSV format
+output_filename = json_filename.replace(".json", ".csv")
+with open(output_filename, "w", newline="", encoding="utf-8") as f:
+    writer = csv.writer(f)
+    # Write cleanly labeled headers
+    writer.writerow(["Date", "Data Usage"]) 
+    writer.writerows(extracted_rows)
+
+print(f" CSV file:'{output_filename}'successfully generated")
